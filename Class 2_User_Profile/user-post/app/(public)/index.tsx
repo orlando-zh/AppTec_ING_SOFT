@@ -1,38 +1,58 @@
 import { Feather } from "@expo/vector-icons";
 import {
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextComponent,
-    TextInput, TouchableOpacity,
-    View
+    ActivityIndicator,
+    KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View
 } from "react-native";
+import {useRouter} from "expo-router";
+import {useLogin} from "../src/auth/viewmodels/use-login";
 
 export default function LoginScreen() {
+
+    const router = useRouter();
+    const {
+            email,
+            password,
+            setEmail,
+            setPassword,
+            isLoading,
+            errorMessage,
+            isPasswordVisible,
+            togglePasswordVisibility,
+            handleLogin
+    } = useLogin();
+
     return (
         <KeyboardAvoidingView
             style={styles.container}
             behavior={Platform.OS === "android" ? "padding" : "height"}
         >
             <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-               <View style={styles.header}>
-                <View style={styles.logoContainer}>
-                    <Feather name="shopping-bag" size={25} color="#fff"/>
+                <View style={styles.header}>
+                    <View style={styles.logoContainer}>
+                        <Feather name="shopping-bag" size={25} color="#fff"/>
+                    </View>
+                    <Text style={styles.appNameLabel}>ShopEase</Text>
+                    <Text style={styles.welcomeLabel}>Welcome back! Please enter your details</Text>
                 </View>
-                <Text style={styles.appNameLabel}>ShopEase</Text>
-                <Text style={styles.welcomeLabel}>Welcome back! Please enter your desails</Text>
-               </View>
-                {/**cARD */}
+
+                {/* CARD */}
                 <View style={styles.card}>
-                    <Text style={styles.label}>Email Addres</Text>
+                    {errorMessage && (
+                        <View style={styles.errorContainer}>
+                            <Text style={styles.errorText}>{errorMessage}</Text>
+                        </View>
+                    )}
+
+                    <Text style={styles.label}>Email Address</Text>
                     <View style={styles.inputContainer}>
                         <Feather name="mail" size={20} color="#9CA3AF"/>
                         <TextInput
                             style={styles.input}
                             placeholder={"name@gmail.com"}
+                            autoCapitalize="none"
                             keyboardType="email-address"
+                            value={email}
+                            onChangeText={setEmail}
                         />
                     </View>
                     <View style={styles.passwordRow}>
@@ -45,16 +65,39 @@ export default function LoginScreen() {
                         <Feather name="lock" size={20} color="#9CA3AF"/>
                         <TextInput
                             style={styles.input}
+                            value={password}
+                            onChangeText={setPassword}
                             placeholder={"*************"}
-                            secureTextEntry={true}
+                            autoCapitalize="none"
+                            secureTextEntry={!isPasswordVisible}
                         />
-                    </View>n
+                        <TouchableOpacity onPress={togglePasswordVisibility}>
+                            <Feather name={isPasswordVisible ? "eye" : "eye-off"} size={20} color="#9CA3AF"/>
+                        </TouchableOpacity>
+                    </View>
+                    {isLoading ?(
+                        <ActivityIndicator size="large" color="#006C47"/>
+                    ):( <TouchableOpacity
+                        style={styles.buttonLogin}
+                        onPress={handleLogin}
+                    >
+                        <Text style={styles.buttonLoginText}>Log in</Text>
+                    </TouchableOpacity>)}
+
+                </View>
+
+                <View style={styles.signUpRow}>
+                    <Text style={styles.singUpText}>Does not  have account?</Text>
+                    <TouchableOpacity
+                        onPress={()=> router.push("/(public)/register")}
+                    >
+                        <Text style={styles.singUpTextLink}>Sing up for free</Text>
+                    </TouchableOpacity>
+
                 </View>
             </ScrollView>
-
         </KeyboardAvoidingView>
-
-    )
+    );
 }
 
 const styles = StyleSheet.create({
@@ -127,6 +170,46 @@ const styles = StyleSheet.create({
     forgotPasswordLabel:{
         color:"#006C47",
         fontWeight:"600"
+    },
+    buttonLogin:{
+        backgroundColor:"#006C47",
+        justifyContent:"center",
+        alignItems:"center",
+        height:50,
+        borderRadius:8,
+    },
+    buttonLoginText:{
+        color:"#fff",
+        fontSize:16,
+        fontWeight:"bold"
+    },
+    signUpRow:{
+        flexDirection:"row",
+        justifyContent:"center",
+        marginTop:35
+    },
+    singUpText:{
+        fontSize:14,
+        color:"#6B7280"
+    },
+    singUpTextLink:{
+        fontSize:14,
+        fontWeight:"bold",
+        color:"#006C47",
+    },
+    errorContainer:{
+        borderWidth:1,
+        borderRadius: 8,
+        backgroundColor:"#FEE2E2",
+        borderColor:"#FCA5A5",
+        marginBottom:20,
+        padding: 12
+    },
+    errorText:{
+        fontSize:15,
+        textAlign:"center",
+        color:"#DC26260",
+        fontWeight:"500",
     }
-})
+});
 
