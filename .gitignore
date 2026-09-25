@@ -1,0 +1,76 @@
+# ==========================================
+# Secretos y Entornos (¡Crítico!)
+# ==========================================
+.env
+.env*.local
+*.pem
+*.key
+*.p12
+*.p8
+*.mobileprovision
+
+# Extensiones de IA y config local (evita exponer API keys)
+.continue/
+.cursor/
+
+# ==========================================
+# Node & Gestores de paquetes
+# ==========================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+
+# ==========================================
+# Expo
+# ==========================================
+.expo/
+.expo-shared/
+web-build/
+dist/
+
+# ==========================================
+# TypeScript & Compilación
+# ==========================================
+*.tsbuildinfo
+*.js.map
+*.d.ts.map
+
+# ==========================================
+# Android (React Native / Prebuild)
+# ==========================================
+android/app/build/
+android/.gradle/
+android/local.properties
+android/app/debug.keystore
+android/app/release.keystore
+*.keystore
+*.jks
+
+# ==========================================
+# iOS (React Native / Prebuild)
+# ==========================================
+ios/Pods/
+ios/build/
+ios/DerivedData/
+*.xcworkspace
+*.xcuserdata/
+Podfile.lock
+
+# ==========================================
+# Editores e IDEs
+# ==========================================
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# ==========================================
+# Sistema Operativo
+# ==========================================
+.DS_Store
+Thumbs.db
+Desktop.ini
