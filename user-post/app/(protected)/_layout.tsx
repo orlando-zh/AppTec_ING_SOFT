@@ -1,73 +1,127 @@
-import {GestureHandlerRootView} from "react-native-gesture-handler"
-import {Drawer} from "expo-router/drawer";
-import {StyleSheet, View, Image, Text, Touchable, TouchableOpacity} from "react-native";
-import {useDrawer} from "@/app/src/admin/viewmodels/use-drawer";
-import {Feather} from "@expo/vector-icons";
-import {useAuth} from "@/app/src/context/AuthContext";
+import { useDrawer } from "@/app/src/admin/viewmodels/use-drawer";
+import { useAuth } from "@/app/src/context/AuthContext";
+import { Feather } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { Drawer } from "expo-router/drawer";
+import { useState } from "react";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 export default function ProtectedLayout() {
-    const {profile, navigationOptions} = useDrawer()
-    const {clearSession} = useAuth()
+    const { profile, navigationOptions } = useDrawer()
+    const { clearSession } = useAuth()
+    const router = useRouter()
+    const [isInventoryExpanded, setIsInventoryExpanded] = useState(false);
     return (
         <GestureHandlerRootView>
             <Drawer screenOptions={{
                 headerTintColor: "#006C47"
-                }}
-                    drawerContent={(props)=>{
-                        const activeIndex = props.state.index
-                        const activeRouteName = props.state.routeNames[activeIndex]
+            }}
+                drawerContent={(props) => {
+                    const activeIndex = props.state.index
+                    const activeRouteName = props.state.routeNames[activeIndex]
 
-                        return (
-                            <View style={styles.drawerContainer}>
-                                <View style={styles.header}>
-                                    <View style={styles.headerInfoUser}>
-                                        <Image
-                                            style={styles.avatar}
-                                            source={{uri: profile.avatarUrl}}
-                                        />
-                                        <View style={styles.headerInfo}>
-                                            <Text style={styles.adminName}>{profile.name}</Text>
-                                            <Text style={styles.adminRole}>{profile.role}</Text>
-                                        </View>
-
+                    return (
+                        <View style={styles.drawerContainer}>
+                            <View style={styles.header}>
+                                <View style={styles.headerInfoUser}>
+                                    <Image
+                                        style={styles.avatar}
+                                        source={{ uri: profile.avatarUrl }}
+                                    />
+                                    <View style={styles.headerInfo}>
+                                        <Text style={styles.adminName}>{profile.name}</Text>
+                                        <Text style={styles.adminRole}>{profile.role}</Text>
                                     </View>
-                                    <View style={styles.versionTag}>
-                                        <Text>{profile.version}</Text>
-                                    </View>
-
 
                                 </View>
-                                <View style={styles.menuList}>
-                                    {navigationOptions.map((option) => {
-                                        const isSelected = activeRouteName === option.name
-                                        return (
+                                <View style={styles.versionTag}>
+                                    <Text>{profile.version}</Text>
+                                </View>
+
+
+                            </View>
+                            <View style={styles.menuList}>
+                                {navigationOptions.map((option) => {
+                                    const isSelected = activeRouteName === option.name;
+                                    const mainSelected = isSelected && !option.subitems;
+
+                                    return (
+                                        <View key={option.name}>
                                             <TouchableOpacity
-                                                style={[styles.menuItemList, isSelected && styles.menuItemSelected]}
-                                                key={option.name}
+                                                style={[styles.menuItemList, mainSelected && styles.menuItemSelected]}
+                                                onPress={() => {
+                                                    if (option.subitems) {
+                                                        setIsInventoryExpanded(!isInventoryExpanded);
+                                                    } else {
+                                                        router.push(`/(protected)/${option.name}` as any);
+                                                    }
+                                                }}
                                             >
                                                 <Feather
                                                     name={option.icon as any}
                                                     size={20}
-                                                    color={isSelected ? "#FFF" : "#374151"}
+                                                    color={mainSelected ? "#FFF" : "#374151"}
                                                     style={styles.menuIcon}
                                                 />
-                                                <Text style={[styles.menuText, isSelected && styles.menuTextSelected]}>{option.label}</Text>
+                                                <Text style={[styles.menuText, mainSelected && styles.menuTextSelected]}>
+                                                    {option.label}
+                                                </Text>
+                                                {option.subitems && (
+                                                    <Feather
+                                                        name={isInventoryExpanded ? "chevron-up" : "chevron-down"}
+                                                        size={16}
+                                                        color="#4B5563"
+                                                        style={{ marginLeft: "auto" }}
+                                                    />
+                                                )}
                                             </TouchableOpacity>
-                                        )
-                                    })}
-                                </View>
-                                <TouchableOpacity
-                                    style={styles.logoutButton}
-                                    onPress={async () => {
-                                        await clearSession();
-                                    }}
-                                >
-                                    <Feather name="log-out" size={20} color="#EF4444" style={styles.menuIcon}/>
-                                    <Text style={styles.logoutText}>Log Out</Text>
-                                </TouchableOpacity>
+
+                                            {/* LÓGICA DEL SUBMENÚ EXTRAÍDA DE LAS IMÁGENES */}
+                                            {option.subitems && isInventoryExpanded && option.subitems.map((sub) => {
+                                                const isSubSelected = activeRouteName === sub.name;
+                                                return (
+                                                    <TouchableOpacity
+                                                        key={sub.name}
+                                                        style={[
+                                                            styles.menuItemList,
+                                                            { paddingLeft: 40 }, // Mueve el texto/icono a la derecha, pero el fondo verde abarca todo
+                                                            isSubSelected && styles.menuItemSelected
+                                                        ]}
+                                                        onPress={() => router.push(`/(protected)/${sub.name}` as any)}
+                                                    >
+                                                        <Feather
+                                                            name={sub.icon as any}
+                                                            size={16}
+                                                            color={isSubSelected ? "#FFF" : "#4B5563"}
+                                                            style={styles.menuIcon}
+                                                        />
+                                                        <Text style={[
+                                                            styles.menuText,
+                                                            { fontSize: 14 },
+                                                            isSubSelected && styles.menuTextSelected
+                                                        ]}>
+                                                            {sub.label}
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                );
+                                            })}
+                                        </View>
+                                    )
+                                })}
                             </View>
-                        )
-                    }}
+                            <TouchableOpacity
+                                style={styles.logoutButton}
+                                onPress={async () => {
+                                    await clearSession();
+                                }}
+                            >
+                                <Feather name="log-out" size={20} color="#EF4444" style={styles.menuIcon} />
+                                <Text style={styles.logoutText}>Log Out</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )
+                }}
             />
         </GestureHandlerRootView>
     );
@@ -87,21 +141,21 @@ const styles = StyleSheet.create({
     headerInfoUser: {
         flexDirection: "row",
     },
-    avatar:{
+    avatar: {
         height: 50,
         width: 50,
         borderRadius: 30,
     },
     headerInfo: {
         marginLeft: 15,
-        marginTop:5
+        marginTop: 5
     },
     adminName: {
         fontSize: 20,
         color: "#006C47",
         fontWeight: "bold",
     },
-    adminRole:{
+    adminRole: {
         fontSize: 13,
         fontWeight: "bold",
         color: "#6B7280",
@@ -134,7 +188,7 @@ const styles = StyleSheet.create({
     menuIcon: {
         marginRight: 15,
     },
-    menuText:{
+    menuText: {
         fontSize: 15,
         fontWeight: "bold",
         color: "#374151",
@@ -155,5 +209,4 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
         color: "#EF4444",
     }
-
 })
