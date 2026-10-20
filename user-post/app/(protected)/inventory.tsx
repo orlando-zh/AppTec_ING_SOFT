@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Drawer } from 'expo-router/drawer';
-import React from 'react';
+import React, { useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -13,96 +15,150 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import {useAuth} from "@/app/src/context/AuthContext";
+import {CategoryService} from "@/app/src/categories/services/category.service";
 
 export default function InventoryScreen() {
   const router = useRouter();
+  const { token } = useAuth();
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSaveCategory = async () => {
+    if (name.trim() === "") {
+      Alert.alert("Campo requerido", "Por favor ingrese el nombre de la categoria.");
+      return;
+    }
+    if (description.trim() === "") {
+      Alert.alert("Campo requerido", "Por favor ingrese la descripcion.");
+      return;
+    }
+    if (!token) {
+      Alert.alert("Error de sesion", "No se encontro el token.");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const newCategory = await CategoryService.createCategory(name, description, token);
+
+      Alert.alert(
+          "Categoria creada",
+          `La categoria "${newCategory.name}" se guardo exitosamente`,
+          [
+            {
+              text: "Aceptar",
+              onPress: () => {
+                setName("");
+                setDescription("");
+                router.replace("/(protected)/dashboard");
+              }
+            }
+          ]
+      );
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "No se pudo guardar la categoria");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Oculta la cabecera por defecto del Drawer para usar la personalizada */}
-      <Drawer.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
-
-      {/* Manejo de teclado para evitar que tape inputs en iOS y Android */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.flex}
-      >
-        {/* Cabecera personalizada */}
-        <View style={styles.header}>
-          {/* Botón Volver */}
-          <TouchableOpacity
-            onPress={() => {
-              router.replace('/(protected)/dashboard' as any);
+      <SafeAreaView style={styles.container}>
+        <Drawer.Screen
+            options={{
+              headerShown: false,
             }}
-          >
-            <Ionicons name="arrow-back-outline" size={26} color="#000" />
-          </TouchableOpacity>
+        />
 
-          {/* Títulos del Header */}
-          <View style={styles.titleWrapper}>
-            <Text style={styles.headerTitle}>ADMIN PORTAL</Text>
-            <Text style={styles.headerSubtitle}>Nueva Categoría</Text>
-          </View>
-
-          {/* Icono decorativo / acción a la derecha */}
-          <TouchableOpacity>
-            <View style={styles.boxIconContainer}>
-              <Ionicons name="archive-outline" size={22} color="#006C47" />
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Formulario con Scroll */}
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.flex}
         >
-          <Text style={styles.logoText}>
-            Ingresa los datos esenciales para catalogar los productos en el inventario
-          </Text>
-
-          <View style={styles.formCard}>
-            {/* Campo de Nombre */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Nombre de la categoria</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Ej. Dulceria"
-                placeholderTextColor="#9CA3AF"
-              />
-            </View>
-
-            {/* Campo de Descripción */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Descripcion</Text>
-              <TextInput
-                style={styles.textAreaInput}
-                placeholder="Describe los productos que engloban esta categoria"
-                placeholderTextColor="#9CA3AF"
-                multiline={true}
-                numberOfLines={5}
-                textAlignVertical="top"
-              />
-            </View>
-
-            {/* Botón Guardar */}
-            <TouchableOpacity style={styles.btnSave}>
-              <Ionicons style={styles.checkIcon} name="checkmark-outline" size={20} color="#FFF" />
-              <Text style={styles.btnSaveText}>Guardar Categoria</Text>
+          <View style={styles.header}>
+            <TouchableOpacity
+                onPress={() => {
+                  router.replace('/(protected)/dashboard' as any);
+                }}
+            >
+              <Ionicons name="arrow-back-outline" size={26} color="#000" />
             </TouchableOpacity>
 
-            {/* Botón Cancelar (Corregido a texto plano) */}
-            <TouchableOpacity style={styles.btnCancel}>
-              <Text style={styles.btnCancelText}>Cancelar</Text>
+            <View style={styles.titleWrapper}>
+              <Text style={styles.headerTitle}>ADMIN PORTAL</Text>
+              <Text style={styles.headerSubtitle}>Nueva Categoría</Text>
+            </View>
+
+            <TouchableOpacity>
+              <View style={styles.boxIconContainer}>
+                <Ionicons name="archive-outline" size={22} color="#006C47" />
+              </View>
             </TouchableOpacity>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+
+          <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.logoText}>
+              Ingresa los datos esenciales para catalogar los productos en el inventario
+            </Text>
+
+            <View style={styles.formCard}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Nombre de la categoria</Text>
+                <TextInput
+                    placeholder="Ej. Dulceria"
+                    style={styles.textInput}
+                    value={name}
+                    onChangeText={setName}
+                    editable={!isLoading}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Descripcion</Text>
+                <TextInput
+                    style={styles.textAreaInput}
+                    placeholder="Describe los productos que engloban esta categoria"
+                    multiline={true}
+                    numberOfLines={5}
+                    value={description}
+                    onChangeText={setDescription}
+                    editable={!isLoading}
+                    textAlignVertical="top"
+                />
+              </View>
+
+              <TouchableOpacity
+                  onPress={handleSaveCategory}
+                  disabled={isLoading}
+                  style={styles.btnSave}
+              >
+                {isLoading ? (
+                    <ActivityIndicator color="#FFF" size="small" />
+                ) : (
+                    <>
+                      <Ionicons
+                          style={styles.checkIcon}
+                          name="checkmark-outline"
+                          size={22}
+                          color="#FFF"
+                      />
+                      <Text style={styles.btnSaveText}>Guardar Categoria</Text>
+                    </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.btnCancel}>
+                <Text style={styles.btnCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
   );
 }
 

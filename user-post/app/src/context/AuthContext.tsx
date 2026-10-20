@@ -31,10 +31,7 @@ children,
                     setToken(savedToken);
                     setUser(JSON.parse(savedUser));
                 }
-
-                console.log("Session restaurada con exito");
             } catch (error) {
-                console.log("Error al cargar la sesion");
             } finally {
                 setIsLoadingSession(false);
             }

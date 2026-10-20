@@ -1,15 +1,26 @@
-import {Dimensions, FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View} from "react-native";
-import {SafeAreaView} from "react-native-safe-area-context";
-import {Drawer} from "expo-router/drawer";
-import {Ionicons} from "@expo/vector-icons";
-import {useNavigation, useRouter} from "expo-router";
-import {DrawerActions} from "@react-navigation/native";
-import {useDrawer} from "@/app/src/admin/viewmodels/use-drawer";
-import {useMemo, useState} from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { DrawerActions } from "@react-navigation/native";
+import Drawer from "expo-router/drawer";
+import {
+    ActivityIndicator,
+    Dimensions,
+    FlatList,
+    Image,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useDrawer } from "../src/admin/viewmodels/use-drawer";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigation, useRouter } from "expo-router";
+import { useAuth } from "@/app/src/context/AuthContext";
+import { CategoryService } from "@/app/src/categories/services/category.service";
 
-
-const {width} = Dimensions.get("window");
-const CARD_WIDTH = (width - 44) / 2; //Ancho total - margeenes laterales / 2 columnas
+const { width } = Dimensions.get("window");
+const CARD_WIDTH = (width - 44) / 2;
 
 interface Product {
     id: string;
@@ -20,7 +31,7 @@ interface Product {
     isNew?: boolean;
     category: string;
 }
-const CATEGORIES = ["All Products", "Electronics", "Fashion", "VideoGames"];
+
 const MOCK_PRODUCTS_LIST: Product[] = [
     {
         id: "1",
@@ -69,61 +80,90 @@ const MOCK_PRODUCTS_LIST: Product[] = [
 export default function DashboardScreen() {
     const navigation = useNavigation();
     const router = useRouter();
-    const {profile} = useDrawer()
-    const [selectedCategory, setSelectedCategory] = useState("All Products")
-    const [searchQuery, setsearchQuery] = useState("")
-    const openMenu = ()=>{
-        navigation.dispatch(DrawerActions.openDrawer())
-    }
+    const { profile } = useDrawer();
+    const { token } = useAuth();
 
+    // ESTADO EXACTO DEL VIDEO
+    const [selectedCategory, setSelectedCategory] = useState("All Products");
+    const [searchQuery, setSearchQuery] = useState("");
+    const [categories, setCategories] = useState<string[]>(["All categories"]);
+    const [isLoadingCategories, setIsLoadingCategories] = useState(false);
 
-    //FILTRAR DINAMICAMENTE LOS PRODUCTOS SEGUN LA CATEGORIA
+    useEffect(() => {
+        const fetchCategories = async () => {
+            if (!token) return;
+            setIsLoadingCategories(true);
+            try {
+                const data = await CategoryService.getCategories(token);
+                const categoryNames = Array.from(new Set(data.map((c: any) => c.name)));
+                setCategories(["All categories", ...categoryNames]);
+            } catch (error) {
+                // CATCH EXACTO DEL VIDEO (Sin fallback inventado)
+                console.log("Error to get categories from screen", error);
+            } finally {
+                setIsLoadingCategories(false);
+            }
+        };
+        fetchCategories();
+    }, [token]);
+
+    const openMenu = () => {
+        navigation.dispatch(DrawerActions.openDrawer());
+    };
+
+    // LÓGICA DE FILTRADO EXACTA DEL VIDEO
     const filteredProductsByCategory = useMemo(() => {
         return MOCK_PRODUCTS_LIST.filter((product) => {
-            const matchCategory = selectedCategory === "All Products" ||
-                                          product.category === selectedCategory;
-            const matchSearch = product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                         product.description.toLowerCase().includes(searchQuery.toLowerCase())
+            const matchCategory =
+                selectedCategory === "All Products" || product.category === selectedCategory;
+
+            const matchSearch =
+                product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                product.description.toLowerCase().includes(searchQuery.toLowerCase());
+
             return matchCategory && matchSearch;
-        })
-    }, [selectedCategory, searchQuery])
+        });
+    }, [selectedCategory, searchQuery]);
+
     return (
-            <SafeAreaView style={styles.container}>
-                {/** Omitir el drawer por defecto */}
-                <Drawer.Screen options={{headerShown:false}}/>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={openMenu} style={{padding:15}}>
-                        <Ionicons name="menu-outline" size={30} color="#005C3A" />
-                    </TouchableOpacity>
+        <SafeAreaView style={styles.container}>
+            <Drawer.Screen options={{ headerShown: false }} />
+            <View style={styles.header}>
+                <TouchableOpacity onPress={openMenu} style={{ padding: 15 }}>
+                    <Ionicons name="menu-outline" size={30} color="#005C3A" />
+                </TouchableOpacity>
 
-                    <Text style={styles.logoText}>ShopEase</Text>
-                    <TouchableOpacity
-                        style={styles.profileContainer}
-                        onPress={() => router.push("/(protected)/profile")}
-                    >
-                        <Image
-                          source={{uri:profile.avatarUrl}}
-                          style={styles.avatarImage}
-                        />
-                    </TouchableOpacity>
-                </View>
-                
-                <View style={styles.searchContainer}>
-                    <Ionicons name="search-outline" size={20} style={styles.searchIcon}/>
-                    <TextInput
-                        placeholder="Search products"
-                        value={searchQuery}
-                        onChangeText={setsearchQuery}
-                        style={styles.searchInput}
+                <Text style={styles.logoText}>ShopEase</Text>
+                <TouchableOpacity
+                    style={styles.profileContainer}
+                    onPress={() => router.push("/(protected)/profile")}
+                >
+                    <Image
+                        source={{ uri: profile?.avatarUrl || "https://i.pravatar.cc/100" }}
+                        style={styles.avatarImage}
                     />
-                </View>
+                </TouchableOpacity>
+            </View>
 
-                {/** CATEGORIAS */}
-                <View style={styles.categoriesWrapper}>
+            <View style={styles.searchContainer}>
+                <Ionicons name="search-outline" size={20} style={styles.searchIcon} />
+                <TextInput
+                    placeholder="Search products"
+                    style={styles.searchInput}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                />
+            </View>
+
+            {/**CATEGORIES**/}
+            <View style={styles.categoriesWrapper}>
+                {isLoadingCategories ? (
+                    <ActivityIndicator size="small" color="#005C3A" />
+                ) : (
                     <FlatList
                         horizontal
                         showsHorizontalScrollIndicator={false}
-                        data={CATEGORIES}
+                        data={categories}
                         keyExtractor={(item) => item}
                         contentContainerStyle={styles.categoriesList}
                         renderItem={({ item }) => {
@@ -146,66 +186,67 @@ export default function DashboardScreen() {
                             );
                         }}
                     />
-                </View>
+                )}
+            </View>
 
-                {/** PRODUCTS CARD */}
-                <FlatList
-                    data={filteredProductsByCategory}
-                    keyExtractor={(item) => item.id}
-                    numColumns={2}
-                    columnWrapperStyle={styles.gridRowSpace}
-                    contentContainerStyle={styles.productList}
-                    showsVerticalScrollIndicator={false}
-                    renderItem={({ item }) => (
-                        <View style={styles.cardContainer}>
-                            <View style={styles.imageWrapper}>
-                                <Image source={{ uri: item.image }} style={styles.productImage} />
-                                {item.isNew && (
-                                    <View style={styles.newBadge}>
-                                        <Text style={styles.newBadgeText}>NEW</Text>
-                                    </View>
-                                )}
-                            </View>
-
-                            <View style={styles.productInfo}>
-                                <Text style={styles.productTitle}>{item.title}</Text>
-                                <Text style={styles.productDescription}>{item.description}</Text>
-
-                                <View style={styles.priceRow}>
-                                    <Text>${item.price.toFixed(2)}</Text>
-                                    <TouchableOpacity style={styles.cartBtn}>
-                                        <Ionicons name="cart-outline" size={16} color="#FFF" />
-                                    </TouchableOpacity>
+            {/**PRODUCTS CARD**/}
+            <FlatList
+                data={filteredProductsByCategory}
+                keyExtractor={(item) => item.id}
+                numColumns={2}
+                columnWrapperStyle={styles.gridRowSpace}
+                contentContainerStyle={styles.productList}
+                showsVerticalScrollIndicator={false}
+                renderItem={({ item }) => (
+                    <View style={styles.cardContainer}>
+                        <View style={styles.imageWrapper}>
+                            <Image source={{ uri: item.image }} style={styles.productImage} />
+                            {item.isNew && (
+                                <View style={styles.newBadge}>
+                                    <Text style={styles.newBadgeText}>NEW</Text>
                                 </View>
+                            )}
+                        </View>
+
+                        <View style={styles.productInfo}>
+                            <Text style={styles.productTitle}>{item.title}</Text>
+                            <Text style={styles.productDescription}>{item.description}</Text>
+                            <View style={styles.priceRow}>
+                                <Text>${item.price.toFixed(2)}</Text>
+                                <TouchableOpacity style={styles.cardBtn}>
+                                    <Ionicons name="cart-outline" size={16} color="#FFF" />
+                                </TouchableOpacity>
                             </View>
                         </View>
-                    )}
-                />
-            </SafeAreaView>
-    )
+                    </View>
+                )}
+            />
+        </SafeAreaView>
+    );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#F9FAFB",
+        backgroundColor: "#F9FAFB"
     },
     header: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
         paddingHorizontal: 15,
-        paddingVertical: 14,
+        paddingVertical: 14
     },
     logoText: {
         fontSize: 24,
         fontWeight: "bold",
-        color: "#005C3A",
+        color: "#005C3A"
     },
     profileContainer: {
         borderRadius: 20,
         overflow: "hidden",
         borderWidth: 1,
+        borderColor: "#D1D5DB"
     },
     avatarImage: {
         width: 40,
@@ -222,24 +263,24 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         borderWidth: 1,
         borderColor: "#D1D5DB",
-        borderRadius: 14,
+        borderRadius: 14
     },
     searchIcon: {
-        marginRight: 10,
+        marginRight: 10
     },
     searchInput: {
         flex: 1,
         fontSize: 15,
         color: "#1F2937",
-        padding:0
+        padding: 0
     },
     categoriesWrapper: {
         maxHeight: 50,
-        marginBottom: 16,
+        marginBottom: 16
     },
     categoriesList: {
         paddingHorizontal: 16,
-        alignItems: "center",
+        alignItems: "center"
     },
     categoryItem: {
         paddingHorizontal: 18,
@@ -251,7 +292,7 @@ const styles = StyleSheet.create({
     categoryItemSelected: {
         backgroundColor: "#005C3A"
     },
-    categoryText:{
+    categoryText: {
         fontSize: 14,
         fontWeight: "bold",
         color: "#374151"
@@ -259,14 +300,12 @@ const styles = StyleSheet.create({
     categoryTextSelected: {
         color: "#FFF"
     },
-
-    /** ESTILOS PARA LAS TARJETAS */
     productList: {
         paddingHorizontal: 16,
-        paddingBottom: 24,
+        paddingBottom: 24
     },
     gridRowSpace: {
-        justifyContent: "space-between",
+        justifyContent: "space-between"
     },
     cardContainer: {
         width: CARD_WIDTH,
@@ -275,21 +314,21 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         overflow: "hidden",
         shadowColor: "#000",
-        shadowOffset: {width: 0, height:1},
+        shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.05,
         shadowRadius: 5,
-        elevation: 2,
+        elevation: 2
     },
     imageWrapper: {
-        width: "100%",
         height: 140,
+        width: "100%",
         backgroundColor: "#F3F4F6",
         position: "relative"
     },
     productImage: {
         width: "100%",
         height: "100%",
-        resizeMode: "cover",
+        resizeMode: "cover"
     },
     newBadge: {
         position: "absolute",
@@ -301,36 +340,35 @@ const styles = StyleSheet.create({
         borderRadius: 6,
     },
     newBadgeText: {
+        color: "#FFF",
         fontSize: 10,
         fontWeight: "bold",
-        color: "#FFF",
     },
     productInfo: {
-        padding: 12,
+        padding: 12
     },
     productTitle: {
         fontSize: 14,
         fontWeight: "bold",
         color: "#1F2937",
-        marginBottom: 2,
+        marginBottom: 2
     },
     productDescription: {
         fontSize: 11,
         color: "#6B7280",
-        marginBottom:8,
+        marginBottom: 8
     },
     priceRow: {
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "space-between",
+        justifyContent: "space-between"
     },
-    cartBtn: {
+    cardBtn: {
         backgroundColor: "#00B074",
         width: 30,
         height: 30,
         justifyContent: "center",
         borderRadius: 15,
-        alignItems: "center",
+        alignItems: "center"
     }
-})
-
+});

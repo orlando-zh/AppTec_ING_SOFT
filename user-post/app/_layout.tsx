@@ -19,7 +19,6 @@ function NavigationGuard() {
       const inProctedScreen = segments[0] === "(protected)"
 
     if(token){
-        console.log("USUARIO LOGUEADO", token)
 
         if(!inProctedScreen){
             router.replace("/(protected)/dashboard")
