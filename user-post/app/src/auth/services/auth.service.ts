@@ -1,5 +1,5 @@
-import {AuthResponse, UserResponse} from "../models/auth.model";
 import axios from "axios";
+import { AuthResponse, UserResponse } from "../models/auth.model";
 
 const API_URL = "https://api-ecommerce-5aby.onrender.com";
 
@@ -10,22 +10,24 @@ export const AuthService = {
                 email,
                 password
             });
+            console.log("Respuesta del servidor (login):", response.data);
 
             return response.data;
         } catch (error: any) {
             if (axios.isAxiosError(error) && error.response) {
+                console.log("Error del servidor (login):", error.response.data);
                 throw new Error(error.response.data?.Message || "Error to login");
             }
             throw new Error("Server error");
         }
     },
-    register:async(
+    register: async (
         name: string,
         lastname: string,
         phone: string,
         email: string,
         password: string
-    )=>{
+    ) => {
         try {
             const response = await axios.post(`${API_URL}/auth/register`, {
                 name,
@@ -36,20 +38,20 @@ export const AuthService = {
             })
             console.log(response.data);
             return response.data;
-        } catch (error:any) {
+        } catch (error: any) {
             if (axios.isAxiosError(error) && error.response) {
                 throw new Error(error.response.data?.Message || "Error to login");
             }
             throw new Error("Server error");
         }
     },
-    updateUser:async(
+    updateUser: async (
         userId: number,
         name: string,
         lastname: string,
         phone: string,
         token: string
-    ): Promise<UserResponse>=>{
+    ): Promise<UserResponse> => {
         try {
             const formData = new FormData();
             formData.append("name", name);
@@ -63,12 +65,31 @@ export const AuthService = {
                     "Content-Type": "multipart/form-data"
                 }
             })
+            console.log("Respuesta del servidor (actualizar usuario):", response.data);
             return response.data;
-        } catch (error:any) {
+        } catch (error: any) {
             if (axios.isAxiosError(error) && error.response) {
+                console.log("Error del servidor (actualizar usuario):", error.response.data);
                 throw new Error(error.response.data?.Message || "Error to update user");
             }
             throw new Error("Server error");
+        }
+    },
+
+    /**  VALIDATE TOKEN */
+    validateToken: async (token: string): Promise<boolean> => {
+        try {
+            const header = token.startsWith("Bearer ") ? token : `Bearer ${token}`
+            const { data } = await axios.get(`${API_URL}/auth/validate`, {
+                headers: { Authorization: header },
+                timeout: 10000
+            })
+            return data.valid === true
+        } catch (error) {
+            console.log(error);
+
+            if (axios.isAxiosError(error) && error.response?.status === 401) return false
+            throw error
         }
     }
 }

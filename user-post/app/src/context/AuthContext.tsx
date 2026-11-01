@@ -1,6 +1,7 @@
-import React, { createContext, useState, useEffect, useContext } from "react";
-import { UserResponse } from "../auth/models/auth.model";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { UserResponse } from "../auth/models/auth.model";
+import { AuthService } from "../auth/services/auth.service";
 
 interface AuthContextType {
     token: string | null;
@@ -8,14 +9,14 @@ interface AuthContextType {
     isLoadingSession: boolean;
     saveSession: (token: string, user: UserResponse) => Promise<void>;
     clearSession: () => void;
-    updateUserSession: (updateUSer:UserResponse) => Promise<void>;
+    updateUserSession: (updateUSer: UserResponse) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
-children,
- }) => {
+    children,
+}) => {
     const [token, setToken] = useState<string | null>(null);
     const [user, setUser] = useState<UserResponse | null>(null);
     const [isLoadingSession, setIsLoadingSession] = useState(true);
@@ -28,8 +29,20 @@ children,
                 // SI TENGO EL USUARIO GUARDADO
                 const savedUser = await AsyncStorage.getItem("@auth_user");
                 if (savedToken && savedUser) {
-                    setToken(savedToken);
-                    setUser(JSON.parse(savedUser));
+                    try {
+                        const isValid = await AuthService.validateToken(savedToken)
+                        if (isValid) {
+                            setToken(savedToken)
+                            setUser(JSON.parse(savedUser))
+                        } else {
+                            await AsyncStorage.multiRemove(["@auth_token", "@auth_user"])
+                        }
+
+                    } catch (error) {
+                        setToken(savedToken)
+                        setUser(JSON.parse(savedUser))
+
+                    }
                 }
             } catch (error) {
             } finally {

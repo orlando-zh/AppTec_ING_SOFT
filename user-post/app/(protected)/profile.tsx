@@ -1,25 +1,25 @@
+import { AuthService } from "@/app/src/auth/services/auth.service";
+import { useAuth } from "@/app/src/context/AuthContext";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { Drawer } from "expo-router/drawer";
+import { useEffect, useState } from "react";
 import {
+    ActivityIndicator,
+    Alert,
     Image,
     ScrollView,
     StyleSheet,
     Text,
-    TouchableOpacity,
-    View,
     TextInput,
-    Alert,
-    ActivityIndicator
+    TouchableOpacity,
+    View
 } from "react-native";
-import {useRouter} from "expo-router";
-import {SafeAreaView} from "react-native-safe-area-context";
-import {Drawer} from "expo-router/drawer";
-import {Ionicons} from "@expo/vector-icons";
-import {useAuth} from "@/app/src/context/AuthContext";
-import { useState, useEffect } from "react";
-import {AuthService} from "@/app/src/auth/services/auth.service";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function ProfileScreen(){
+export default function ProfileScreen() {
     const router = useRouter()
-    const {user, token, updateUserSession} = useAuth();
+    const { user, token, updateUserSession } = useAuth();
 
     const [name, setName] = useState("")
     const [lastName, setLastName] = useState("")
@@ -35,11 +35,11 @@ export default function ProfileScreen(){
     }, [user]);
 
     const handleUpdateUser = async () => {
-        if(!name.trim() || !lastName.trim() || !phone.trim()){
+        if (!name.trim() || !lastName.trim() || !phone.trim()) {
             Alert.alert("Campos incompletos", "Por favor llenar los campos");
             return
         }
-        if(!user?.id || !token){
+        if (!user?.id || !token) {
             Alert.alert("Error de sesion", "No se encontro el usuario");
             return
         }
@@ -55,21 +55,22 @@ export default function ProfileScreen(){
             await updateUserSession(updatedUser)
             Alert.alert("Excelente",
                 "Tu informacion ha sido actualizada con exito en el servidor");
-        }catch (error:any) {
+        } catch (error: any) {
+            console.log("Error al actualizar usuario:", error);
             Alert.alert("Error de registro", error.message || "No se pudo actualizar");
-        }finally {
+        } finally {
             setIsUpdating(false)
         }
     }
 
     return (
-        <SafeAreaView  style={styles.container}>
-            <Drawer.Screen options={{headerShown:false}}/>
+        <SafeAreaView style={styles.container}>
+            <Drawer.Screen options={{ headerShown: false }} />
             <View style={styles.header}>
                 <TouchableOpacity
-                    onPress={()=> router.replace("/(protected)/dashboard")}
+                    onPress={() => router.replace("/(protected)/dashboard")}
                 >
-                    <Ionicons name="arrow-back-outline" size={26}/>
+                    <Ionicons name="arrow-back-outline" size={26} />
                 </TouchableOpacity>
                 <Text style={styles.logoText}>ShopEase</Text>
             </View>
@@ -77,11 +78,11 @@ export default function ProfileScreen(){
                 <View style={styles.profileCard}>
                     <View style={styles.imageWrapper}>
                         <Image
-                            source={{uri: "https://i.pinimg.com/originals/89/19/cc/8919cc617f8055034f35ca883cd32b89.jpg"}}
+                            source={{ uri: "https://i.pinimg.com/originals/89/19/cc/8919cc617f8055034f35ca883cd32b89.jpg" }}
                             style={styles.profileAvatar}
                         />
                         <TouchableOpacity style={styles.cameraBtn}>
-                             <Ionicons name="camera" size={16} color={"#FFF"}/>
+                            <Ionicons name="camera" size={16} color={"#FFF"} />
                         </TouchableOpacity>
                     </View>
                     <Text style={styles.profileName}>Orlando Bladimir Zuniga Hernandez </Text>
@@ -104,19 +105,19 @@ export default function ProfileScreen(){
                     <View style={styles.inputGroup}>
                         <Text style={styles.inputLabel}>NAME</Text>
                         <View style={styles.inputWrapper}>
-                            <Ionicons style={styles.inputIcon} name="person-outline" size={20}/>
+                            <Ionicons style={styles.inputIcon} name="person-outline" size={20} />
                             <TextInput
-                            placeholder="Full name"
-                            style={styles.input}
-                            value={name}
-                            onChangeText={setName}
+                                placeholder="Full name"
+                                style={styles.input}
+                                value={name}
+                                onChangeText={setName}
                             />
                         </View>
                     </View>
                     <View style={styles.inputGroup}>
                         <Text style={styles.inputLabel}>LAST NAME</Text>
                         <View style={styles.inputWrapper}>
-                            <Ionicons style={styles.inputIcon} name="person-outline" size={20}/>
+                            <Ionicons style={styles.inputIcon} name="person-outline" size={20} />
                             <TextInput
                                 placeholder="Last name"
                                 style={styles.input}
@@ -128,7 +129,7 @@ export default function ProfileScreen(){
                     <View style={styles.inputGroup}>
                         <Text style={styles.inputLabel}>PHONE NUMBER</Text>
                         <View style={styles.inputWrapper}>
-                            <Ionicons style={styles.inputIcon} name="call-outline" size={20}/>
+                            <Ionicons style={styles.inputIcon} name="call-outline" size={20} />
                             <TextInput
                                 placeholder="Phone number"
                                 keyboardType="phone-pad"
@@ -145,12 +146,12 @@ export default function ProfileScreen(){
                     >
                         {isUpdating ? (
                             <ActivityIndicator color="#FFF" size="small" />
-                        ):(
+                        ) : (
                             <>
                                 <Ionicons name="checkmark-circle-outline"
-                                   size={20}
-                                   color="#FFF"
-                                   style={{marginRight: 8}}
+                                    size={20}
+                                    color="#FFF"
+                                    style={{ marginRight: 8 }}
                                 />
                                 <Text style={styles.updateButtonText}>Save Changes</Text>
                             </>
@@ -300,7 +301,7 @@ const styles = StyleSheet.create({
         height: 48,
         backgroundColor: "#FFF",
     },
-    input:{
+    input: {
         flex: 1,
         fontSize: 15,
         color: "#1F2937",

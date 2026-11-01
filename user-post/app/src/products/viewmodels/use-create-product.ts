@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
-import { useRouter } from "expo-router";
+import { CategoryResponse, CategoryService } from "@/app/src/categories/services/category.service";
 import { useAuth } from "@/app/src/context/AuthContext";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Alert } from "react-native";
+import { ProductItem } from "../models/product.model";
 import { ProductService } from "../services/product.service";
-import {Alert} from "react-native";
-import {CategoryResponse, CategoryService} from "@/app/src/categories/services/category.service";
 
 export function useCreateProduct() {
     const router = useRouter();
@@ -12,6 +13,8 @@ export function useCreateProduct() {
     const [name, setName] = useState("")
     const [categoryId, setCategoryId] = useState<null | number>(null)
     const [categories, setCategories] = useState<CategoryResponse[]>([])
+    const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+    const [products, setProducts] = useState<ProductItem[]>([]);
     const [isLoadingCategories, setIsLoadingCategories] = useState(false)
     const [isCategoriesShowModal, setIsCategoriesShowModal] = useState(false)
     const [sku, setSku] = useState("")
@@ -23,13 +26,43 @@ export function useCreateProduct() {
     const [isLoadingProduct, setIsLoadingProduct] = useState(false)
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
     const [selectedCategoryName, setSelectedCategoryName] = useState("")
-
+    const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
         if (token) {
             fetchCategories()
         }
     }, [token])
+
+
+    const fetchProducts = useCallback(async () => {
+        if (!token) return;
+
+        setIsLoadingProduct(true);
+
+        try {
+            if (selectedCategoryId === null) {
+                const data = await ProductService.getProductsByCategoryId(1, token);
+                setProducts(data);
+            } else {
+                const data = await ProductService.getProductsByCategoryId(Number(selectedCategoryId), token);
+                setProducts(data);
+            }
+
+        } catch (error) {
+            console.log("Error al traer los productos", error);
+
+        } finally {
+            setIsLoadingProduct(false);
+        }
+    }, [token, selectedCategoryId]);
+
+
+
+    useEffect(() => {
+        fetchProducts()
+    }, [fetchProducts])
+
 
     const fetchCategories = async () => {
         if (!token) return
@@ -58,24 +91,21 @@ export function useCreateProduct() {
         setErrorMessage(null)
         setIsLoadingProduct(true)
 
-        console.log("PRODUCT ID", categoryId);
+        const productPayload = {
+            name: name.trim(),
+            categoryId: Number(categoryId),
+            sku: sku.trim(),
+            description: description.trim(),
+            regularPrice: parseFloat(regularPrice),
+            offerPrice: offerPrice ? parseFloat(offerPrice) : undefined,
+            initialStock: parseInt(initialStock, 10),
+            minStockAlert: minStockAlert ? parseInt(minStockAlert, 10) : 0
+        };
 
 
         try {
-            const response = await ProductService.createProduct(
-                {
-                    name: name.trim(),
-                    categoryId: Number(categoryId),
-                    sku: sku.trim(),
-                    description: description.trim(),
-                    regularPrice: parseFloat(regularPrice),
-                    offerPrice: offerPrice ? parseFloat(offerPrice) : undefined,
-                    initialStock: parseInt(initialStock, 10),
-                    minStockAlert: minStockAlert ? parseInt(minStockAlert, 10) : 0
-                },
-                token
-            );
-            console.log("Respuesta", response);
+            const response = await ProductService.createProduct(productPayload, token);
+
 
             Alert.alert("Exito", "Producto creado correctamente", [
                 {
@@ -90,6 +120,21 @@ export function useCreateProduct() {
         }
 
     }
+
+
+    const filteredProducts = useMemo(() => {
+        if (!searchQuery) return products;
+
+        const query = searchQuery.toLowerCase().trim();
+
+        return products.filter((p) => {
+            return (
+                p.name.toLowerCase().includes(query) ||
+                (p.description && p.description.toLowerCase().includes(query))
+            );
+        });
+    }, [products, searchQuery]);
+
 
     return {
         name,
@@ -116,7 +161,13 @@ export function useCreateProduct() {
         errorMessage,
         submitProduct,
         selectedCategoryName,
-        setSelectedCategoryName
+        setSelectedCategoryName,
+        products: filteredProducts,
+        searchQuery,
+        setSearchQuery,
+        refreshProducts: fetchProducts,
+        selectedCategoryId,
+        setSelectedCategoryId,
     }
 
 }

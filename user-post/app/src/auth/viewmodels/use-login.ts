@@ -1,24 +1,24 @@
-import {useState} from "react";
-import {AuthService} from "../services/auth.service";
-import {useRouter} from "expo-router";
-import {useAuth} from "@/app/src/context/AuthContext";
+import { useAuth } from "@/app/src/context/AuthContext";
+import { useRouter } from "expo-router";
+import { useState } from "react";
+import { AuthService } from "../services/auth.service";
 
-export function useLogin(){
+export function useLogin() {
     const router = useRouter();
-    const {saveSession} = useAuth()
+    const { saveSession } = useAuth()
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [isLoading, setIsLoading] = useState(false)
-    const [errorMessage, setErrorsMessage] = useState<string|null>(null)
+    const [errorMessage, setErrorsMessage] = useState<string | null>(null)
     const [isPasswordVisible, setIsPasswordVisible] = useState<boolean>(false);
     const togglePasswordVisibility = () => {
-        setIsPasswordVisible((prev)=> !prev)
+        setIsPasswordVisible((prev) => !prev)
     }
 
 
 
-    const handleLogin=async ()=>{
-        if(!email || !password){
+    const handleLogin = async () => {
+        if (!email || !password) {
             setErrorsMessage("Please, complete all fields")
             return
         }
@@ -28,9 +28,10 @@ export function useLogin(){
         try {
             const data = await AuthService.login(email, password)
             await saveSession(data.token, data.userResponse)
-        } catch (error:any) {
+        } catch (error: any) {
+            console.log("Error en login:", error);
             setErrorsMessage(error.message)
-        }finally {
+        } finally {
             setIsLoading(false)
         }
     }

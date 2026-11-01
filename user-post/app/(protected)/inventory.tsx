@@ -1,3 +1,5 @@
+import { CategoryService } from "@/app/src/categories/services/category.service";
+import { useAuth } from "@/app/src/context/AuthContext";
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Drawer } from 'expo-router/drawer';
@@ -15,8 +17,6 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {useAuth} from "@/app/src/context/AuthContext";
-import {CategoryService} from "@/app/src/categories/services/category.service";
 
 export default function InventoryScreen() {
   const router = useRouter();
@@ -43,22 +43,24 @@ export default function InventoryScreen() {
 
     try {
       const newCategory = await CategoryService.createCategory(name, description, token);
+      console.log("Categoría creada recibida:", newCategory);
 
       Alert.alert(
-          "Categoria creada",
-          `La categoria "${newCategory.name}" se guardo exitosamente`,
-          [
-            {
-              text: "Aceptar",
-              onPress: () => {
-                setName("");
-                setDescription("");
-                router.replace("/(protected)/dashboard");
-              }
+        "Categoria creada",
+        `La categoria "${newCategory.name}" se guardo exitosamente`,
+        [
+          {
+            text: "Aceptar",
+            onPress: () => {
+              setName("");
+              setDescription("");
+              router.replace("/(protected)/dashboard");
             }
-          ]
+          }
+        ]
       );
     } catch (error: any) {
+      console.log("Error al guardar categoría:", error);
       Alert.alert("Error", error.message || "No se pudo guardar la categoria");
     } finally {
       setIsLoading(false);
@@ -66,99 +68,99 @@ export default function InventoryScreen() {
   };
 
   return (
-      <SafeAreaView style={styles.container}>
-        <Drawer.Screen
-            options={{
-              headerShown: false,
+    <SafeAreaView style={styles.container}>
+      <Drawer.Screen
+        options={{
+          headerShown: false,
+        }}
+      />
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => {
+              router.replace('/(protected)/dashboard' as any);
             }}
-        />
+          >
+            <Ionicons name="arrow-back-outline" size={26} color="#000" />
+          </TouchableOpacity>
 
-        <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.flex}
-        >
-          <View style={styles.header}>
-            <TouchableOpacity
-                onPress={() => {
-                  router.replace('/(protected)/dashboard' as any);
-                }}
-            >
-              <Ionicons name="arrow-back-outline" size={26} color="#000" />
-            </TouchableOpacity>
-
-            <View style={styles.titleWrapper}>
-              <Text style={styles.headerTitle}>ADMIN PORTAL</Text>
-              <Text style={styles.headerSubtitle}>Nueva Categoría</Text>
-            </View>
-
-            <TouchableOpacity>
-              <View style={styles.boxIconContainer}>
-                <Ionicons name="archive-outline" size={22} color="#006C47" />
-              </View>
-            </TouchableOpacity>
+          <View style={styles.titleWrapper}>
+            <Text style={styles.headerTitle}>ADMIN PORTAL</Text>
+            <Text style={styles.headerSubtitle}>Nueva Categoría</Text>
           </View>
 
-          <ScrollView
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
-          >
-            <Text style={styles.logoText}>
-              Ingresa los datos esenciales para catalogar los productos en el inventario
-            </Text>
-
-            <View style={styles.formCard}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Nombre de la categoria</Text>
-                <TextInput
-                    placeholder="Ej. Dulceria"
-                    style={styles.textInput}
-                    value={name}
-                    onChangeText={setName}
-                    editable={!isLoading}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Descripcion</Text>
-                <TextInput
-                    style={styles.textAreaInput}
-                    placeholder="Describe los productos que engloban esta categoria"
-                    multiline={true}
-                    numberOfLines={5}
-                    value={description}
-                    onChangeText={setDescription}
-                    editable={!isLoading}
-                    textAlignVertical="top"
-                />
-              </View>
-
-              <TouchableOpacity
-                  onPress={handleSaveCategory}
-                  disabled={isLoading}
-                  style={styles.btnSave}
-              >
-                {isLoading ? (
-                    <ActivityIndicator color="#FFF" size="small" />
-                ) : (
-                    <>
-                      <Ionicons
-                          style={styles.checkIcon}
-                          name="checkmark-outline"
-                          size={22}
-                          color="#FFF"
-                      />
-                      <Text style={styles.btnSaveText}>Guardar Categoria</Text>
-                    </>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.btnCancel}>
-                <Text style={styles.btnCancelText}>Cancelar</Text>
-              </TouchableOpacity>
+          <TouchableOpacity>
+            <View style={styles.boxIconContainer}>
+              <Ionicons name="archive-outline" size={22} color="#006C47" />
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.logoText}>
+            Ingresa los datos esenciales para catalogar los productos en el inventario
+          </Text>
+
+          <View style={styles.formCard}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Nombre de la categoria</Text>
+              <TextInput
+                placeholder="Ej. Dulceria"
+                style={styles.textInput}
+                value={name}
+                onChangeText={setName}
+                editable={!isLoading}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Descripcion</Text>
+              <TextInput
+                style={styles.textAreaInput}
+                placeholder="Describe los productos que engloban esta categoria"
+                multiline={true}
+                numberOfLines={5}
+                value={description}
+                onChangeText={setDescription}
+                editable={!isLoading}
+                textAlignVertical="top"
+              />
+            </View>
+
+            <TouchableOpacity
+              onPress={handleSaveCategory}
+              disabled={isLoading}
+              style={styles.btnSave}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#FFF" size="small" />
+              ) : (
+                <>
+                  <Ionicons
+                    style={styles.checkIcon}
+                    name="checkmark-outline"
+                    size={22}
+                    color="#FFF"
+                  />
+                  <Text style={styles.btnSaveText}>Guardar Categoria</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.btnCancel}>
+              <Text style={styles.btnCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 

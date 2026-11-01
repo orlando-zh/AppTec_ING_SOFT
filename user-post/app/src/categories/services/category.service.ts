@@ -1,5 +1,5 @@
+import { apiClient } from "@/api/ApiClient";
 import axios from "axios";
-import {API_URL} from "@/api/ApiClient";
 
 export interface CategoryResponse {
     id: number;
@@ -18,8 +18,9 @@ export const CategoryService = {
         try {
             const authTokenHeader = token.startsWith("Bearer ") ? token : `Bearer ${token}`
 
-            const response = await axios.post(
-                `${API_URL}/categories/create`,
+            // CAMBIO: Usamos apiClient y omitimos el API_URL
+            const response = await apiClient.post(
+                `/categories/create`,
                 {
                     name,
                     description
@@ -31,10 +32,12 @@ export const CategoryService = {
                     }
                 }
             )
+            console.log("Respuesta del servidor (crear categoría):", response.data);
 
             return response.data
         } catch (error) {
             if (axios.isAxiosError(error) && error.response) {
+                console.log("Error del servidor (crear categoría):", error.response.data);
                 throw new Error(error.response.data?.message || "Error to save category")
             }
             throw new Error("Server error")
@@ -45,8 +48,9 @@ export const CategoryService = {
         try {
             const authTokenHeader = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
 
-            const response = await axios.get<CategoryResponse[]>(
-                `${API_URL}/categories`,
+            // CAMBIO: Usamos apiClient y omitimos el API_URL
+            const response = await apiClient.get<CategoryResponse[]>(
+                `/categories`,
                 {
                     headers: {
                         Authorization: authTokenHeader
