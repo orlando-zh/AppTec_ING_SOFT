@@ -1,27 +1,29 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { interceptorClearSession } from "@/app/src/context/AuthContext";
 import axios from "axios";
 
 export const API_URL = "https://api-ecommerce-5aby.onrender.com";
 
-// 1. Crear la instancia global de axios
 export const apiClient = axios.create({
     baseURL: API_URL,
     timeout: 10000,
 });
 
-// 2. Agregar el interceptor de RESPUESTA
 apiClient.interceptors.response.use(
     (response) => {
+        // Pasa directamente las respuestas exitosas del backend sin alterar
         return response;
     },
     async (error) => {
-        // Validar si es 401 y excluir la ruta de login
+        // Maneja de forma legítima los errores 401 reales provenientes de la API
         if (
             error.response?.status === 401 &&
-            !error.config.url.includes('/auth/login')
+            !error.config?.url?.includes('/auth/login')
         ) {
-            console.log("Interceptor global detectó 401.");
-            await AsyncStorage.multiRemove(["@auth_token", "@auth_user"]);
+            console.log("Interceptor global detectó 401 real. Ejecutando clearSession...");
+
+            if (interceptorClearSession) {
+                interceptorClearSession();
+            }
         }
 
         return Promise.reject(error);

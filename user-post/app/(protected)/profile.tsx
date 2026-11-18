@@ -1,5 +1,6 @@
 import { AuthService } from "@/app/src/auth/services/auth.service";
 import { useAuth } from "@/app/src/context/AuthContext";
+import { CustomInput } from "@/components/CustomInput";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Drawer } from "expo-router/drawer";
@@ -11,20 +12,30 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
-    View
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ProfileScreen() {
-    const router = useRouter()
+    const router = useRouter();
     const { user, token, updateUserSession } = useAuth();
 
-    const [name, setName] = useState("")
-    const [lastName, setLastName] = useState("")
-    const [phone, setPhone] = useState("")
-    const [isUpdating, setIsUpdating] = useState(false)
+    const [name, setName] = useState("");
+    const [lastName, setLastName] = useState("");
+    const [phone, setPhone] = useState("");
+    const [isUpdating, setIsUpdating] = useState(false);
+
+    // Estado centralizado para mensajes de error
+    const [errors, setErrors] = useState({
+        name: "",
+        lastName: "",
+        phone: "",
+    });
+
+    // Expresiones regulares para validación estricta
+    const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]*$/; // Solo letras y espacios
+    const phoneRegex = /^[0-9]*$/; // Solo números
 
     useEffect(() => {
         if (user) {
@@ -34,16 +45,69 @@ export default function ProfileScreen() {
         }
     }, [user]);
 
+    // Validación en tiempo real y bloqueo inmediato
+    const handleChange = (field: "name" | "lastName" | "phone", value: string) => {
+        let newErrors = { ...errors };
+
+        switch (field) {
+            case "name":
+                if (!nameRegex.test(value)) {
+                    newErrors.name = "El nombre no debe contener números ni caracteres especiales.";
+                } else {
+                    newErrors.name = "";
+                    setName(value);
+                }
+                break;
+
+            case "lastName":
+                if (!nameRegex.test(value)) {
+                    newErrors.lastName = "El apellido no debe contener números ni caracteres especiales.";
+                } else {
+                    newErrors.lastName = "";
+                    setLastName(value);
+                }
+                break;
+
+            case "phone":
+                if (!phoneRegex.test(value)) {
+                    newErrors.phone = "El teléfono solo debe contener números.";
+                } else {
+                    newErrors.phone = "";
+                    setPhone(value);
+                }
+                break;
+        }
+
+        setErrors(newErrors);
+    };
+
+    // Validación de barrera previa a la actualización
     const handleUpdateUser = async () => {
-        if (!name.trim() || !lastName.trim() || !phone.trim()) {
-            Alert.alert("Campos incompletos", "Por favor llenar los campos");
-            return
+        const isNameEmpty = !name.trim();
+        const isLastNameEmpty = !lastName.trim();
+        const isPhoneEmpty = !phone.trim();
+        const hasActiveErrors = Boolean(errors.name || errors.lastName || errors.phone);
+
+        if (isNameEmpty || isLastNameEmpty || isPhoneEmpty || hasActiveErrors) {
+            setErrors({
+                name: isNameEmpty ? "El nombre es obligatorio." : errors.name,
+                lastName: isLastNameEmpty ? "El apellido es obligatorio." : errors.lastName,
+                phone: isPhoneEmpty ? "El teléfono es obligatorio." : errors.phone,
+            });
+
+            Alert.alert(
+                "Formulario inválido",
+                "Por favor llena todos los campos correctamente y corrige los errores antes de continuar."
+            );
+            return;
         }
+
         if (!user?.id || !token) {
-            Alert.alert("Error de sesion", "No se encontro el usuario");
-            return
+            Alert.alert("Error de sesión", "No se encontró el usuario");
+            return;
         }
-        setIsUpdating(true)
+
+        setIsUpdating(true);
         try {
             const updatedUser = await AuthService.updateUser(
                 user.id,
@@ -51,30 +115,33 @@ export default function ProfileScreen() {
                 lastName,
                 phone,
                 token
-            )
-            await updateUserSession(updatedUser)
-            Alert.alert("Excelente",
-                "Tu informacion ha sido actualizada con exito en el servidor");
+            );
+            await updateUserSession(updatedUser);
+            Alert.alert(
+                "Excelente",
+                "Tu información ha sido actualizada con éxito en el servidor"
+            );
         } catch (error: any) {
             console.log("Error al actualizar usuario:", error);
             Alert.alert("Error de registro", error.message || "No se pudo actualizar");
         } finally {
-            setIsUpdating(false)
+            setIsUpdating(false);
         }
-    }
+    };
 
     return (
         <SafeAreaView style={styles.container}>
             <Drawer.Screen options={{ headerShown: false }} />
+
             <View style={styles.header}>
-                <TouchableOpacity
-                    onPress={() => router.replace("/(protected)/dashboard")}
-                >
+                <TouchableOpacity onPress={() => router.replace("/(protected)/dashboard")}>
                     <Ionicons name="arrow-back-outline" size={26} />
                 </TouchableOpacity>
                 <Text style={styles.logoText}>ShopEase</Text>
             </View>
+
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                {/* TARJETA DE PERFIL */}
                 <View style={styles.profileCard}>
                     <View style={styles.imageWrapper}>
                         <Image
@@ -85,10 +152,10 @@ export default function ProfileScreen() {
                             <Ionicons name="camera" size={16} color={"#FFF"} />
                         </TouchableOpacity>
                     </View>
-                    <Text style={styles.profileName}>Orlando Bladimir Zuniga Hernandez </Text>
+                    <Text style={styles.profileName}>Orlando Bladimir Zuniga Hernandez</Text>
                     <Text style={styles.profileSubtitle}>Full Stack Developer</Text>
 
-                    {/** CARDS POINTS */}
+                    {/* TARJETAS DE PUNTOS Y ÓRDENES */}
                     <View style={styles.cardPoints}>
                         <View style={[styles.cardPointBox, styles.cardOrderColor]}>
                             <Text style={styles.cardBoxLabel}>Orders</Text>
@@ -100,45 +167,36 @@ export default function ProfileScreen() {
                         </View>
                     </View>
                 </View>
+
+                {/* SECCIÓN DEL FORMULARIO */}
                 <View style={styles.sectionCard}>
                     <Text style={styles.personalHeader}>Personal Information</Text>
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>NAME</Text>
-                        <View style={styles.inputWrapper}>
-                            <Ionicons style={styles.inputIcon} name="person-outline" size={20} />
-                            <TextInput
-                                placeholder="Full name"
-                                style={styles.input}
-                                value={name}
-                                onChangeText={setName}
-                            />
-                        </View>
-                    </View>
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>LAST NAME</Text>
-                        <View style={styles.inputWrapper}>
-                            <Ionicons style={styles.inputIcon} name="person-outline" size={20} />
-                            <TextInput
-                                placeholder="Last name"
-                                style={styles.input}
-                                value={lastName}
-                                onChangeText={setLastName}
-                            />
-                        </View>
-                    </View>
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>PHONE NUMBER</Text>
-                        <View style={styles.inputWrapper}>
-                            <Ionicons style={styles.inputIcon} name="call-outline" size={20} />
-                            <TextInput
-                                placeholder="Phone number"
-                                keyboardType="phone-pad"
-                                style={styles.input}
-                                value={phone}
-                                onChangeText={setPhone}
-                            />
-                        </View>
-                    </View>
+
+                    <CustomInput
+                        label="NAME"
+                        placeholder="Full name"
+                        value={name}
+                        onChangeText={(text) => handleChange("name", text)}
+                        errorMessage={errors.name}
+                    />
+
+                    <CustomInput
+                        label="LAST NAME"
+                        placeholder="Last name"
+                        value={lastName}
+                        onChangeText={(text) => handleChange("lastName", text)}
+                        errorMessage={errors.lastName}
+                    />
+
+                    <CustomInput
+                        label="PHONE NUMBER"
+                        placeholder="Phone number"
+                        keyboardType="phone-pad"
+                        value={phone}
+                        onChangeText={(text) => handleChange("phone", text)}
+                        errorMessage={errors.phone}
+                    />
+
                     <TouchableOpacity
                         style={styles.updateButton}
                         onPress={handleUpdateUser}
@@ -148,7 +206,8 @@ export default function ProfileScreen() {
                             <ActivityIndicator color="#FFF" size="small" />
                         ) : (
                             <>
-                                <Ionicons name="checkmark-circle-outline"
+                                <Ionicons
+                                    name="checkmark-circle-outline"
                                     size={20}
                                     color="#FFF"
                                     style={{ marginRight: 8 }}
@@ -156,7 +215,6 @@ export default function ProfileScreen() {
                                 <Text style={styles.updateButtonText}>Save Changes</Text>
                             </>
                         )}
-
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -197,11 +255,11 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.05,
         shadowRadius: 10,
-        elevation: 2
+        elevation: 2,
     },
     imageWrapper: {
         position: "relative",
-        marginBottom: 14
+        marginBottom: 14,
     },
     profileAvatar: {
         width: 100,
@@ -235,7 +293,7 @@ const styles = StyleSheet.create({
     cardPoints: {
         flexDirection: "row",
         width: "100%",
-        justifyContent: "space-between"
+        justifyContent: "space-between",
     },
     cardPointBox: {
         flex: 1,
@@ -246,11 +304,10 @@ const styles = StyleSheet.create({
         marginHorizontal: 6,
     },
     cardOrderColor: {
-        backgroundColor: "#DBEAFE"
-
+        backgroundColor: "#DBEAFE",
     },
     cardPointsColor: {
-        backgroundColor: "#E2F0FC"
+        backgroundColor: "#E2F0FC",
     },
     cardBoxLabel: {
         fontSize: 10,
@@ -273,42 +330,13 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.04,
         shadowRadius: 10,
-        elevation: 2
+        elevation: 2,
     },
     personalHeader: {
         fontSize: 22,
         fontWeight: "bold",
         color: "#111827",
         marginBottom: 18,
-    },
-    inputGroup: {
-        marginBottom: 14,
-    },
-    inputLabel: {
-        fontSize: 10,
-        fontWeight: "bold",
-        color: "#4B5563",
-        letterSpacing: 1,
-        marginBottom: 6,
-    },
-    inputWrapper: {
-        flexDirection: "row",
-        alignItems: "center",
-        borderWidth: 1,
-        borderColor: "#D1D5DB",
-        borderRadius: 12,
-        paddingHorizontal: 12,
-        height: 48,
-        backgroundColor: "#FFF",
-    },
-    input: {
-        flex: 1,
-        fontSize: 15,
-        color: "#1F2937",
-        paddingVertical: 0,
-    },
-    inputIcon: {
-        marginRight: 10,
     },
     updateButton: {
         flexDirection: "row",
@@ -317,10 +345,11 @@ const styles = StyleSheet.create({
         height: 48,
         alignItems: "center",
         justifyContent: "center",
+        marginTop: 10,
     },
     updateButtonText: {
         color: "#FFF",
         fontSize: 16,
         fontWeight: "bold",
-    }
-})
+    },
+});

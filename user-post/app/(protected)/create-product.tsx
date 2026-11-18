@@ -1,20 +1,23 @@
-import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useCreateProduct } from "@/app/src/products/viewmodels/use-create-product";
+import { CustomInput } from "@/components/CustomInput";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Drawer } from "expo-router/drawer";
 import { useState } from "react";
 import {
-    ActivityIndicator, FlatList,
-    KeyboardAvoidingView, Modal,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    KeyboardAvoidingView,
+    Modal,
     Platform,
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
-    View
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {useCreateProduct} from "@/app/src/products/viewmodels/use-create-product";
 
 export default function CreateProductScreen() {
     const router = useRouter();
@@ -43,9 +46,166 @@ export default function CreateProductScreen() {
         isCategoriesShowModal,
         setIsCategoriesShowModal,
         selectedCategoryName,
-        setSelectedCategoryName
+        setSelectedCategoryName,
+    } = useCreateProduct();
 
-    } = useCreateProduct()
+    // Estado centralizado para mensajes de error
+    const [errors, setErrors] = useState({
+        name: "",
+        category: "",
+        sku: "",
+        description: "",
+        regularPrice: "",
+        offerPrice: "",
+        initialStock: "",
+        minStockAlert: "",
+    });
+
+    // Expresiones regulares para control estricto de tipos de datos
+    const textOnlyRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]*$/; // Bloquea números en campos de texto
+    const integerRegex = /^[0-9]*$/; // Solo enteros para inventario
+    const decimalRegex = /^\d*\.?\d*$/; // Solo números decimales para precios
+    const skuRegex = /^[a-zA-Z0-9-]*$/; // Código alfanumérico con guiones
+
+    // Validación en tiempo real y bloqueo de caracteres no permitidos
+    const handleChange = (
+        field: "name" | "sku" | "description" | "regularPrice" | "offerPrice" | "initialStock" | "minStockAlert",
+        value: string
+    ) => {
+        let newErrors = { ...errors };
+
+        switch (field) {
+            case "name":
+                // Requerimiento 1: Rechazo inmediato de números en el nombre
+                if (!textOnlyRegex.test(value)) {
+                    newErrors.name = "El nombre del producto no debe contener números.";
+                } else {
+                    newErrors.name = "";
+                    setName(value);
+                }
+                break;
+
+            case "sku":
+                if (!skuRegex.test(value)) {
+                    newErrors.sku = "El SKU solo permite caracteres alfanuméricos y guiones.";
+                } else {
+                    newErrors.sku = "";
+                    setSku(value.toUpperCase());
+                }
+                break;
+
+            case "description":
+                setDescription(value);
+                if (value.trim().length > 0 && value.trim().length < 10) {
+                    newErrors.description = "La descripción debe tener al menos 10 caracteres.";
+                } else {
+                    newErrors.description = "";
+                }
+                break;
+
+            case "regularPrice":
+                if (!decimalRegex.test(value)) {
+                    newErrors.regularPrice = "El precio solo debe contener números y punto decimal.";
+                } else {
+                    newErrors.regularPrice = "";
+                    setRegularPrice(value);
+
+                    // Validación cruzada: Si ya hay un precio de oferta, revisa que siga siendo válido
+                    if (offerPrice && parseFloat(offerPrice) >= parseFloat(value)) {
+                        newErrors.offerPrice = "El precio de oferta debe ser menor al precio regular.";
+                    } else {
+                        newErrors.offerPrice = "";
+                    }
+                }
+                break;
+
+            case "offerPrice":
+                if (!decimalRegex.test(value)) {
+                    newErrors.offerPrice = "El precio de oferta solo debe contener números y punto.";
+                } else {
+
+                    const numericOffer = parseFloat(value);
+                    const numericRegular = parseFloat(regularPrice);
+
+
+                    if (regularPrice && numericOffer >= numericRegular) {
+                        newErrors.offerPrice = "El precio de oferta debe ser menor al precio regular.";
+                    } else {
+                        newErrors.offerPrice = "";
+                    }
+
+                    setOfferPrice(value);
+                }
+                break;
+
+            case "initialStock":
+                // Rechazo inmediato de letras o símbolos en el stock
+                if (!integerRegex.test(value)) {
+                    newErrors.initialStock = "El stock inicial solo debe contener números enteros.";
+                } else {
+                    newErrors.initialStock = "";
+                    setInitialStock(value);
+                }
+                break;
+
+            case "minStockAlert":
+                if (!integerRegex.test(value)) {
+                    newErrors.minStockAlert = "El stock mínimo solo debe contener números enteros.";
+                } else {
+                    newErrors.minStockAlert = "";
+                    setMinStockAlert(value);
+                }
+                break;
+        }
+
+        setErrors(newErrors);
+    };
+
+    // Validación de barrera previa a guardar el producto
+    const onSubmitProduct = async () => {
+        const isNameEmpty = !name.trim();
+        const isCategoryEmpty = !categoryId;
+        const isPriceEmpty = !regularPrice.trim();
+        const isInitialStockEmpty = !initialStock.trim();
+        const isMinStockEmpty = !minStockAlert.trim();
+
+        const hasActiveErrors = Boolean(
+            errors.name ||
+            errors.sku ||
+            errors.description ||
+            errors.regularPrice ||
+            errors.offerPrice ||
+            errors.initialStock ||
+            errors.minStockAlert
+        );
+
+        if (
+            isNameEmpty ||
+            isCategoryEmpty ||
+            isPriceEmpty ||
+            isInitialStockEmpty ||
+            isMinStockEmpty ||
+            hasActiveErrors
+        ) {
+            setErrors((prev) => ({
+                ...prev,
+                name: isNameEmpty ? "El nombre del producto es obligatorio." : prev.name,
+                category: isCategoryEmpty ? "Debes seleccionar una categoría." : prev.category,
+                regularPrice: isPriceEmpty ? "El precio regular es obligatorio." : prev.regularPrice,
+                initialStock: isInitialStockEmpty ? "El stock inicial es obligatorio." : prev.initialStock,
+                minStockAlert: isMinStockEmpty ? "El stock mínimo es obligatorio." : prev.minStockAlert,
+            }));
+
+            Alert.alert(
+                "Formulario inválido",
+                "Por favor completa todos los campos obligatorios y corrige los errores antes de continuar."
+            );
+            return;
+        }
+
+        // Si pasa todas las validaciones locales, envía la petición
+        await submitProduct();
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -55,16 +215,24 @@ export default function CreateProductScreen() {
                 style={{ flex: 1 }}
             >
                 <View style={styles.header}>
-                    <TouchableOpacity onPress={() => router.replace("/(protected)/dashboard")} >
+                    <TouchableOpacity onPress={() => router.replace("/(protected)/dashboard")}>
                         <Ionicons name="arrow-back-outline" size={26} />
                     </TouchableOpacity>
                     <View style={styles.titleWrapper}>
-                        <Text style={styles.headerTitle}> ADMIN PORTAL</Text>
-                        <Text style={styles.headerSubtitle}> Nuevo Producto</Text>
+                        <Text style={styles.headerTitle}>ADMIN PORTAL</Text>
+                        <Text style={styles.headerSubtitle}>Nuevo Producto</Text>
                     </View>
                 </View>
 
-                <ScrollView style={styles.scrollContent}>
+                <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                    {/* Error global retornado por el backend si falla */}
+                    {errorMessage && (
+                        <View style={styles.errorContainer}>
+                            <Text style={styles.errorText}>{errorMessage}</Text>
+                        </View>
+                    )}
+
+                    {/* TARJETA 1: INFORMACIÓN GENERAL */}
                     <View style={styles.card}>
                         <View style={styles.cardHeader}>
                             <Feather
@@ -73,79 +241,70 @@ export default function CreateProductScreen() {
                                 color="#006C47"
                                 style={{ marginRight: 10 }}
                             />
-                            <Text style={styles.cardTitle}>Informacion General</Text>
+                            <Text style={styles.cardTitle}>Información General</Text>
                         </View>
 
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>
-                                Nombre del producto
-                            </Text>
-                            <TextInput
-                                placeholder="Ej. Zapato Nike"
-                                style={styles.textInput}
-                                value={name}
-                                onChangeText={setName}
-                            />
-                        </View>
+                        <CustomInput
+                            label="Nombre del producto"
+                            placeholder="Ej. Zapato Deportivo"
+                            value={name}
+                            onChangeText={(text) => handleChange("name", text)}
+                            errorMessage={errors.name}
+                        />
 
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Categoria</Text>
+                        {/* SELECTOR DE CATEGORÍA */}
+                        <View style={styles.selectorGroup}>
+                            <Text style={styles.inputLabel}>Categoría</Text>
                             <TouchableOpacity
-                                style={styles.selectorInput}
-                                onPress={() => {
-                                    setIsCategoriesShowModal(true);
-                                }}
-
+                                style={[
+                                    styles.selectorInput,
+                                    errors.category ? styles.selectorInputError : null,
+                                ]}
+                                onPress={() => setIsCategoriesShowModal(true)}
                             >
-                                <Text>{selectedCategoryName || "Selecciona la categoria"}</Text>
-                                <Feather
-                                    name="chevron-down"
-                                    size={20}
-                                />
+                                <Text
+                                    style={{
+                                        color: selectedCategoryName ? "#111827" : "#9CA3AF",
+                                        fontSize: 15,
+                                    }}
+                                >
+                                    {selectedCategoryName || "Selecciona la categoría"}
+                                </Text>
+                                <Feather name="chevron-down" size={20} color="#6B7280" />
                             </TouchableOpacity>
+                            {errors.category ? (
+                                <Text style={styles.errorTextSmall}>{errors.category}</Text>
+                            ) : null}
                         </View>
 
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>SKU / Codigo de Barra</Text>
-                            <View style={styles.inputWithIcon}>
-                                <MaterialCommunityIcons
-                                    name="barcode-scan"
-                                    size={20}
-                                    style={{ marginRight: 10 }}
-                                />
-                                <TextInput
-                                    placeholder="PR-787878"
-                                    style={styles.textInputScan}
-                                    value={sku}
-                                    onChangeText={setSku}
-                                />
-                            </View>
+                        <CustomInput
+                            label="SKU / Código de Barra"
+                            placeholder="PR-787878"
+                            autoCapitalize="characters"
+                            value={sku}
+                            onChangeText={(text) => handleChange("sku", text)}
+                            errorMessage={errors.sku}
+                        />
+
+                        <CustomInput
+                            label="Descripción Detallada"
+                            placeholder="Describe los atributos principales, materiales, confección..."
+                            multiline
+                            numberOfLines={4}
+                            textAlignVertical="top"
+                            maxLength={2000}
+                            value={description}
+                            onChangeText={(text) => handleChange("description", text)}
+                            errorMessage={errors.description}
+                            style={styles.textArea}
+                        />
+
+                        <View style={styles.charCounterDescription}>
+                            <Text style={styles.counterText}>{description.length}/2000</Text>
                         </View>
-
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Descripcion Detallada</Text>
-                            <TextInput
-                                placeholder="Describe los atributos principales, materiales, confeccion"
-                                multiline
-                                numberOfLines={5}
-                                textAlignVertical="top"
-                                maxLength={2000}
-                                style={styles.textAreaInput}
-                                value={description}
-                                onChangeText={setDescription}
-                            />
-                        </View>
-
-                        <View style={styles.charCounterDescription} >
-                            <Text>
-
-                                {description.length}/2000
-                            </Text>
-                        </View>
-
                     </View>
 
-                    {/* PRECIOS E INVENTARIO */}
+                    {/* TARJETA 2: PRECIOS E INVENTARIO */}
                     <View style={styles.card}>
                         <View style={styles.cardHeader}>
                             <Feather
@@ -156,97 +315,87 @@ export default function CreateProductScreen() {
                             />
                             <Text style={styles.cardTitle}>Precios e Inventario</Text>
                         </View>
-                        <View>
-                            <View style={styles.rowCols}>
-                                <View style={styles.col}>
-                                    <Text style={styles.inputLabel}>Precio Regular</Text>
-                                    <View style={styles.inputPriceWrapper}>
-                                        <Text style={{ marginRight: 6 }}>$</Text>
 
-                                        <TextInput
-                                            placeholder="0.0"
-                                            keyboardType="numeric"
-                                            style={styles.priceInput}
-                                            value={regularPrice}
-                                            onChangeText={setRegularPrice}
-                                        />
-                                    </View>
-                                </View>
-
-                                <View style={styles.col}>
-                                    <Text style={styles.inputLabel}>Precio Oferta</Text>
-                                    <View style={styles.inputPriceWrapper}>
-                                        <Text style={{ marginRight: 6 }}>$</Text>
-
-                                        <TextInput
-                                            placeholder="0.0"
-                                            keyboardType="numeric"
-                                            style={styles.priceInput}
-                                            value={offerPrice}
-                                            onChangeText={setOfferPrice}
-                                        />
-                                    </View>
-                                </View>
+                        <View style={styles.rowCols}>
+                            <View style={styles.col}>
+                                <CustomInput
+                                    label="Precio Regular ($)"
+                                    placeholder="0.00"
+                                    keyboardType="numeric"
+                                    value={regularPrice}
+                                    onChangeText={(text) => handleChange("regularPrice", text)}
+                                    errorMessage={errors.regularPrice}
+                                />
                             </View>
 
-                            <View style={styles.rowCols}>
-                                <View style={styles.col}>
-                                    <Text style={styles.inputLabel}>Stock Inicial</Text>
-                                    <View style={styles.inputPriceWrapper}>
-                                        <Text style={{ marginRight: 6 }}>$</Text>
-
-                                        <TextInput
-                                            placeholder="50"
-                                            keyboardType="numeric"
-                                            style={styles.priceInput}
-                                            value={initialStock}
-                                            onChangeText={setInitialStock}
-                                        />
-                                    </View>
-                                </View>
-
-
-
-                                <View style={styles.col}>
-                                    <Text style={styles.inputLabel}>Stock Mínimo</Text>
-                                    <View style={styles.inputPriceWrapper}>
-                                        <Text style={{ marginRight: 6 }}>$</Text>
-
-                                        <TextInput
-                                            placeholder="5"
-                                            keyboardType="numeric"
-                                            style={styles.priceInput}
-                                            value={minStockAlert}
-                                            onChangeText={setMinStockAlert}
-                                        />
-                                    </View>
-                                </View>
-
-
+                            <View style={styles.col}>
+                                <CustomInput
+                                    label="Precio Oferta ($)"
+                                    placeholder="0.00"
+                                    keyboardType="numeric"
+                                    value={offerPrice}
+                                    onChangeText={(text) => handleChange("offerPrice", text)}
+                                    errorMessage={errors.offerPrice}
+                                />
                             </View>
-
-                            <TouchableOpacity
-                                style={styles.btnSave}
-                                onPress={submitProduct}
-                                disabled={isLoadingProduct}
-                            >
-                                {isLoadingProduct ? (
-                                    <ActivityIndicator color="#FFF" size="small" />
-                                ) : (
-                                    <>
-                                        <Ionicons style={styles.checkIcon} name="checkmark-outline" size={22} color="#FFF" />
-                                        <Text style={styles.btnSaveText}>Guardar Producto</Text>
-                                    </>
-                                )}
-                            </TouchableOpacity>
-
-
                         </View>
+
+                        <View style={styles.rowCols}>
+                            <View style={styles.col}>
+                                <CustomInput
+                                    label="Stock Inicial"
+                                    placeholder="50"
+                                    keyboardType="numeric"
+                                    value={initialStock}
+                                    onChangeText={(text) => handleChange("initialStock", text)}
+                                    errorMessage={errors.initialStock}
+                                />
+                            </View>
+
+                            <View style={styles.col}>
+                                <CustomInput
+                                    label="Stock Mínimo"
+                                    placeholder="5"
+                                    keyboardType="numeric"
+                                    value={minStockAlert}
+                                    onChangeText={(text) => handleChange("minStockAlert", text)}
+                                    errorMessage={errors.minStockAlert}
+                                />
+                            </View>
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.btnSave}
+                            onPress={onSubmitProduct}
+                            disabled={isLoadingProduct}
+                        >
+                            {isLoadingProduct ? (
+                                <ActivityIndicator color="#FFF" size="small" />
+                            ) : (
+                                <>
+                                    <Ionicons
+                                        style={styles.checkIcon}
+                                        name="checkmark-outline"
+                                        size={22}
+                                        color="#FFF"
+                                    />
+                                    <Text style={styles.btnSaveText}>Guardar Producto</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.btnCancel}
+                            onPress={() => router.replace("/(protected)/dashboard")}
+                            disabled={isLoadingProduct}
+                        >
+                            <Text style={styles.btnCancelText}>Cancelar</Text>
+                        </TouchableOpacity>
                     </View>
                 </ScrollView>
-
             </KeyboardAvoidingView>
 
+            {/* MODAL DE CATEGORÍAS */}
             <Modal
                 visible={isCategoriesShowModal}
                 transparent
@@ -256,15 +405,12 @@ export default function CreateProductScreen() {
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <Text>Seleccionar Categoria</Text>
-                            <TouchableOpacity
-                                onPress={() => {
-                                    setIsCategoriesShowModal(false);
-                                }}
-                            >
+                            <Text style={styles.modalTitle}>Seleccionar Categoría</Text>
+                            <TouchableOpacity onPress={() => setIsCategoriesShowModal(false)}>
                                 <Feather name="x" size={22} color="#374151" />
                             </TouchableOpacity>
                         </View>
+
                         {isLoadingCategories ? (
                             <ActivityIndicator size="large" color="#006C47" />
                         ) : (
@@ -275,28 +421,38 @@ export default function CreateProductScreen() {
                                     const isSelected = item.id === categoryId;
                                     return (
                                         <TouchableOpacity
-                                            style={[styles.categoryOption, isSelected && styles.categoryOptionSelected]}
+                                            style={[
+                                                styles.categoryOption,
+                                                isSelected && styles.categoryOptionSelected,
+                                            ]}
                                             onPress={() => {
-                                                setCategoryId(item.id)
-                                                setSelectedCategoryName(item.name)
-                                                setIsCategoriesShowModal(false)
+                                                setCategoryId(item.id);
+                                                setSelectedCategoryName(item.name);
+                                                setErrors((prev) => ({ ...prev, category: "" }));
+                                                setIsCategoriesShowModal(false);
                                             }}
                                         >
-                                            <Text style={[styles.categoryOptionText, isSelected && styles.categoryOptionTextSelected]}>{item.name}</Text>
-                                            {isSelected && <Feather name="check" size={18} color="#006C47" />}
+                                            <Text
+                                                style={[
+                                                    styles.categoryOptionText,
+                                                    isSelected && styles.categoryOptionTextSelected,
+                                                ]}
+                                            >
+                                                {item.name}
+                                            </Text>
+                                            {isSelected && (
+                                                <Feather name="check" size={18} color="#006C47" />
+                                            )}
                                         </TouchableOpacity>
-                                    )
+                                    );
                                 }}
                             />
                         )}
                     </View>
                 </View>
             </Modal>
-
         </SafeAreaView>
-
-
-    )
+    );
 }
 
 const styles = StyleSheet.create({
@@ -325,7 +481,7 @@ const styles = StyleSheet.create({
         fontSize: 10,
         fontWeight: "bold",
         color: "#006C47",
-        marginTop: 2
+        marginTop: 2,
     },
     scrollContent: {
         paddingHorizontal: 16,
@@ -334,7 +490,7 @@ const styles = StyleSheet.create({
     cardHeader: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: 16
+        marginBottom: 16,
     },
     cardTitle: {
         fontSize: 16,
@@ -352,81 +508,55 @@ const styles = StyleSheet.create({
         shadowRadius: 12,
         elevation: 2,
     },
-    inputGroup: {
-        marginBottom: 10
+    selectorGroup: {
+        marginBottom: 15,
     },
     inputLabel: {
         fontSize: 13,
-        fontWeight: "bold",
+        fontWeight: "500",
         color: "#374151",
-        marginBottom: 8
-    },
-    textInput: {
-        height: 48,
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-        paddingHorizontal: 16,
-        fontSize: 14,
-        borderRadius: 10
+        marginBottom: 5,
     },
     selectorInput: {
         height: 48,
         borderWidth: 1,
-        borderRadius: 10,
+        borderRadius: 8,
         paddingHorizontal: 14,
-        borderColor: "#E5E7EB",
+        borderColor: "#ccc",
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "space-between"
+        justifyContent: "space-between",
+        backgroundColor: "#FFF",
     },
-    inputWithIcon: {
-        height: 48,
-        borderWidth: 1,
-        flexDirection: "row",
-        borderColor: "#E5E7EB",
-        paddingHorizontal: 14,
-        borderRadius: 10,
-        alignItems: "center",
+    selectorInputError: {
+        borderColor: "red",
+        borderWidth: 1.5,
     },
-    textInputScan: {
-        flex: 1,
-        padding: 0
-
+    errorTextSmall: {
+        color: "red",
+        fontSize: 12,
+        marginTop: 5,
     },
-    textAreaInput: {
-        height: 120,
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-        borderRadius: 10,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        fontSize: 14
+    textArea: {
+        minHeight: 100,
+        paddingTop: 10,
     },
     charCounterDescription: {
         flexDirection: "row",
-        justifyContent: "flex-end"
+        justifyContent: "flex-end",
+        marginTop: -10,
+        marginBottom: 10,
+    },
+    counterText: {
+        fontSize: 12,
+        color: "#9CA3AF",
     },
     rowCols: {
         flexDirection: "row",
-        gap: 8
+        gap: 12,
     },
     col: {
         flex: 1,
-        marginBottom: 5
-    },
-    inputPriceWrapper: {
-        height: 48,
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-        borderRadius: 10,
-        paddingHorizontal: 14,
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: "#FFF"
-    },
-    priceInput: {
-        flex: 1,
-        padding: 0
     },
     btnSave: {
         backgroundColor: "#006C47",
@@ -436,37 +566,37 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         marginBottom: 16,
-        marginTop: 16
+        marginTop: 8,
     },
     checkIcon: {
-        marginRight: 8
+        marginRight: 8,
     },
     btnSaveText: {
         color: "#FFF",
         fontSize: 15,
-        fontWeight: "bold"
+        fontWeight: "bold",
     },
     btnCancel: {
         height: 24,
         justifyContent: "center",
-        alignItems: "center"
+        alignItems: "center",
     },
     btnCancelText: {
         fontSize: 14,
         color: "#6B7280",
-        fontWeight: "500"
+        fontWeight: "500",
     },
     modalOverlay: {
         flex: 1,
         backgroundColor: "rgba(0,0,0,0.4)",
-        justifyContent: "flex-end"
+        justifyContent: "flex-end",
     },
     modalContent: {
         backgroundColor: "#FFFFFF",
         padding: 20,
         maxHeight: "60%",
         borderTopLeftRadius: 20,
-        borderTopRightRadius: 20
+        borderTopRightRadius: 20,
     },
     modalHeader: {
         flexDirection: "row",
@@ -475,7 +605,12 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         paddingBottom: 10,
         borderBottomWidth: 1,
-        borderBottomColor: "#E5E7EB"
+        borderBottomColor: "#E5E7EB",
+    },
+    modalTitle: {
+        fontSize: 16,
+        fontWeight: "bold",
+        color: "#111827",
     },
     categoryOption: {
         flexDirection: "row",
@@ -483,18 +618,31 @@ const styles = StyleSheet.create({
         alignItems: "center",
         paddingVertical: 14,
         paddingHorizontal: 12,
-        borderRadius: 8
+        borderRadius: 8,
     },
     categoryOptionSelected: {
-        backgroundColor: "#ECFDF5"
+        backgroundColor: "#ECFDF5",
     },
     categoryOptionText: {
         fontSize: 16,
-        color: "#374151"
+        color: "#374151",
     },
     categoryOptionTextSelected: {
         color: "#006C47",
-        fontWeight: "600"
-    }
-
+        fontWeight: "600",
+    },
+    errorContainer: {
+        borderWidth: 1,
+        borderRadius: 8,
+        backgroundColor: "#FEE2E2",
+        borderColor: "#FCA5A5",
+        marginBottom: 16,
+        padding: 12,
+    },
+    errorText: {
+        fontSize: 14,
+        textAlign: "center",
+        color: "#DC2626",
+        fontWeight: "500",
+    },
 });

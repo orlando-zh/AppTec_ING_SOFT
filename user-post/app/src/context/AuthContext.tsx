@@ -12,6 +12,9 @@ interface AuthContextType {
     updateUserSession: (updateUSer: UserResponse) => Promise<void>;
 }
 
+// Creamos una variable global exportable para que el interceptor la pueda usar
+export let interceptorClearSession: () => void;
+
 export const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -37,11 +40,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                         } else {
                             await AsyncStorage.multiRemove(["@auth_token", "@auth_user"])
                         }
-
                     } catch (error) {
                         setToken(savedToken)
                         setUser(JSON.parse(savedUser))
-
                     }
                 }
             } catch (error) {
@@ -63,7 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
     };
 
-    //EDITE LA INFORMACION TIENE QUE CAMBIAR LA SESSION
+    // EDITE LA INFORMACION TIENE QUE CAMBIAR LA SESSION
     const updateUserSession = async (updatedUser: UserResponse) => {
         try {
             await AsyncStorage.setItem("@auth_user", JSON.stringify(updatedUser));
@@ -83,6 +84,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             console.log("Error al limpiar la sesion", error);
         }
     };
+
+    // 2. AÑADIDO: Asignamos la función local clearSession a la variable global exportada
+    interceptorClearSession = clearSession;
 
     return (
         <AuthContext.Provider

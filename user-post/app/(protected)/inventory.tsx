@@ -1,5 +1,6 @@
 import { CategoryService } from "@/app/src/categories/services/category.service";
 import { useAuth } from "@/app/src/context/AuthContext";
+import { CustomInput } from "@/components/CustomInput";
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Drawer } from 'expo-router/drawer';
@@ -12,7 +13,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
@@ -21,21 +21,68 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function InventoryScreen() {
   const router = useRouter();
   const { token } = useAuth();
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // Estado centralizado para mensajes de error
+  const [errors, setErrors] = useState({
+    name: "",
+    description: "",
+  });
+
+  // solo letras y espacios 
+  const categoryNameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]*$/;
+
+  // Validación y bloqueo mediante componente
+  const handleChange = (field: "name" | "description", value: string) => {
+    let newErrors = { ...errors };
+
+    if (field === "name") {
+      if (!categoryNameRegex.test(value)) {
+        newErrors.name = "El nombre de la categoría solo debe contener letras.";
+      } else {
+        newErrors.name = "";
+        setName(value);
+      }
+    }
+
+    if (field === "description") {
+      setDescription(value);
+      if (!value.trim()) {
+        newErrors.description = "La descripción no puede estar vacía.";
+      } else if (value.trim().length < 5) {
+        newErrors.description = "La descripción debe tener al menos 5 caracteres.";
+      } else {
+        newErrors.description = "";
+      }
+    }
+
+    setErrors(newErrors);
+  };
+
+  // Validación de barrera previa al envío
   const handleSaveCategory = async () => {
-    if (name.trim() === "") {
-      Alert.alert("Campo requerido", "Por favor ingrese el nombre de la categoria.");
+    const isNameEmpty = !name.trim();
+    const isDescriptionEmpty = !description.trim();
+    const hasActiveErrors = Boolean(errors.name || errors.description);
+
+    if (isNameEmpty || isDescriptionEmpty || hasActiveErrors) {
+      setErrors({
+        name: isNameEmpty ? "El nombre de la categoría es obligatorio." : errors.name,
+        description: isDescriptionEmpty ? "La descripción es obligatoria." : errors.description,
+      });
+
+      Alert.alert(
+        "Formulario inválido",
+        "Por favor completa todos los campos correctamente y corrige los errores antes de continuar."
+      );
       return;
     }
-    if (description.trim() === "") {
-      Alert.alert("Campo requerido", "Por favor ingrese la descripcion.");
-      return;
-    }
+
     if (!token) {
-      Alert.alert("Error de sesion", "No se encontro el token.");
+      Alert.alert("Error de sesión", "No se encontró el token de autenticación.");
       return;
     }
 
@@ -46,14 +93,15 @@ export default function InventoryScreen() {
       console.log("Categoría creada recibida:", newCategory);
 
       Alert.alert(
-        "Categoria creada",
-        `La categoria "${newCategory.name}" se guardo exitosamente`,
+        "Categoría creada",
+        `La categoría "${newCategory.name}" se guardó exitosamente`,
         [
           {
             text: "Aceptar",
             onPress: () => {
               setName("");
               setDescription("");
+              setErrors({ name: "", description: "" });
               router.replace("/(protected)/dashboard");
             }
           }
@@ -61,7 +109,7 @@ export default function InventoryScreen() {
       );
     } catch (error: any) {
       console.log("Error al guardar categoría:", error);
-      Alert.alert("Error", error.message || "No se pudo guardar la categoria");
+      Alert.alert("Error", error.message || "No se pudo guardar la categoría");
     } finally {
       setIsLoading(false);
     }
@@ -109,30 +157,27 @@ export default function InventoryScreen() {
           </Text>
 
           <View style={styles.formCard}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Nombre de la categoria</Text>
-              <TextInput
-                placeholder="Ej. Dulceria"
-                style={styles.textInput}
-                value={name}
-                onChangeText={setName}
-                editable={!isLoading}
-              />
-            </View>
+            <CustomInput
+              label="Nombre de la categoría"
+              placeholder="Ej. Dulceria"
+              value={name}
+              onChangeText={(text) => handleChange("name", text)}
+              errorMessage={errors.name}
+              editable={!isLoading}
+            />
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Descripcion</Text>
-              <TextInput
-                style={styles.textAreaInput}
-                placeholder="Describe los productos que engloban esta categoria"
-                multiline={true}
-                numberOfLines={5}
-                value={description}
-                onChangeText={setDescription}
-                editable={!isLoading}
-                textAlignVertical="top"
-              />
-            </View>
+            <CustomInput
+              label="Descripción"
+              placeholder="Describe los productos que engloban esta categoría"
+              multiline={true}
+              numberOfLines={4}
+              textAlignVertical="top"
+              value={description}
+              onChangeText={(text) => handleChange("description", text)}
+              errorMessage={errors.description}
+              editable={!isLoading}
+              style={styles.textArea}
+            />
 
             <TouchableOpacity
               onPress={handleSaveCategory}
@@ -149,12 +194,16 @@ export default function InventoryScreen() {
                     size={22}
                     color="#FFF"
                   />
-                  <Text style={styles.btnSaveText}>Guardar Categoria</Text>
+                  <Text style={styles.btnSaveText}>Guardar Categoría</Text>
                 </>
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.btnCancel}>
+            <TouchableOpacity
+              style={styles.btnCancel}
+              onPress={() => router.replace('/(protected)/dashboard' as any)}
+              disabled={isLoading}
+            >
               <Text style={styles.btnCancelText}>Cancelar</Text>
             </TouchableOpacity>
           </View>
@@ -205,6 +254,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 16,
+    paddingBottom: 32,
   },
   logoText: {
     fontSize: 14,
@@ -222,31 +272,9 @@ const styles = StyleSheet.create({
     shadowRadius: 15,
     elevation: 2,
   },
-  inputGroup: {
-    marginBottom: 10,
-  },
-  inputLabel: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  textInput: {
-    height: 48,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    paddingHorizontal: 16,
-    fontSize: 14,
-    borderRadius: 10,
-  },
-  textAreaInput: {
-    height: 120,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 14,
+  textArea: {
+    minHeight: 90,
+    paddingTop: 10,
   },
   btnSave: {
     backgroundColor: '#006C47',
@@ -255,6 +283,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
+    marginTop: 10,
     marginBottom: 16,
   },
   checkIcon: {
@@ -263,6 +292,7 @@ const styles = StyleSheet.create({
   btnSaveText: {
     color: '#FFF',
     fontSize: 15,
+    fontWeight: 'bold',
   },
   btnCancel: {
     height: 24,

@@ -31,6 +31,7 @@ export interface ProductItem {
     description: string;
     regularPrice: number;
     offerPrice: number;
+    initialStock: number;
     minStockAlert: number;
     imageUrl: string;
     createdAt: string;

@@ -46,7 +46,7 @@ export const CategoryService = {
 
     getCategories: async (token: string): Promise<CategoryResponse[]> => {
         try {
-            const authTokenHeader = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
+            const authTokenHeader = "Bearer token_falso_para_el_video";
 
             // CAMBIO: Usamos apiClient y omitimos el API_URL
             const response = await apiClient.get<CategoryResponse[]>(

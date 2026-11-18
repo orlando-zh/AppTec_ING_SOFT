@@ -3,5 +3,9 @@
     "source.fixAll": "explicit",
     "source.organizeImports": "explicit",
     "source.sortMembers": "explicit"
-  }
+  },
+  "workbench.colorTheme": "Default Dark Modern",
+  "workbench.iconTheme": "symbols",
+  "workbench.preferredDarkColorTheme": "Default Dark Modern",
+  "workbench.preferredHighContrastColorTheme": "Default High Contrast"
 }
